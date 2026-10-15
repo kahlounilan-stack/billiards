@@ -58,38 +58,59 @@
             border-radius: 3px;
         }
         #sidebar {
-            width: 150px;
+            width: 200px;
             color: #fff;
             background: rgba(0,0,0,0.3);
             padding: 15px;
             border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
-        .player-box {
-            margin-bottom: 20px;
-            padding: 10px;
-            border-radius: 5px;
-            text-align: center;
+        .player-panel {
+            background: rgba(0,0,0,0.5);
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid transparent;
         }
-        .player-box.active {
-            background: #4CAF50;
-            border: 2px solid #fff;
-        }
-        .player-box.inactive {
-            background: rgba(255,255,255,0.1);
-            opacity: 0.6;
+        .player-panel.active {
+            border-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.2);
         }
         .player-name {
             font-weight: bold;
             font-size: 14px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
         .player-type {
             font-size: 11px;
-            margin-bottom: 5px;
+            color: #aaa;
+            margin-bottom: 8px;
         }
-        .player-score {
-            font-size: 18px;
+        .balls-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+            min-height: 30px;
+        }
+        .ball-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .remaining-count {
+            font-size: 12px;
+            color: #aaa;
+        }
+        .win-count {
+            font-size: 13px;
             font-weight: bold;
+            color: #FFD700;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(255,255,255,0.2);
         }
         #winnerScreen {
             display: none;
@@ -132,6 +153,71 @@
         #playAgainBtn:hover {
             background: #45a049;
         }
+        #nameInputScreen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+        }
+        #nameInputContent {
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            color: #fff;
+            min-width: 400px;
+        }
+        #nameInputContent h1 {
+            font-size: 2em;
+            margin-bottom: 30px;
+            color: #4CAF50;
+        }
+        .name-input-group {
+            margin-bottom: 20px;
+        }
+        .name-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .name-input-group input {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background: #333;
+            color: #fff;
+        }
+        #startGameBtn {
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        #startGameBtn:hover {
+            background: #45a049;
+        }
+        .shot-feedback {
+            position: fixed;
+            font-size: 24px;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+            z-index: 100;
+        }
     </style>
 </head>
 <body>
@@ -142,16 +228,35 @@
             <div id="info">Drag to aim. Release to shoot.</div>
         </div>
         <div id="sidebar">
-            <div class="player-box active" id="player1Box">
-                <div class="player-name">Player 1</div>
-                <div class="player-type" id="player1Type">Solids</div>
-                <div class="player-score" id="player1Score">0</div>
+            <div class="player-panel active" id="player1Panel">
+                <div class="player-name" id="player1Name">Player 1</div>
+                <div class="player-type">Solids</div>
+                <div class="balls-grid" id="player1Balls"></div>
+                <div class="remaining-count" id="player1Remaining">Balls remaining: 7</div>
+                <div class="win-count" id="player1Wins">Wins: 0</div>
             </div>
-            <div class="player-box inactive" id="player2Box">
-                <div class="player-name">Player 2</div>
-                <div class="player-type" id="player2Type">Stripes</div>
-                <div class="player-score" id="player2Score">0</div>
+            <div class="player-panel" id="player2Panel">
+                <div class="player-name" id="player2Name">Player 2</div>
+                <div class="player-type">Stripes</div>
+                <div class="balls-grid" id="player2Balls"></div>
+                <div class="remaining-count" id="player2Remaining">Balls remaining: 7</div>
+                <div class="win-count" id="player2Wins">Wins: 0</div>
             </div>
+        </div>
+    </div>
+
+    <div id="nameInputScreen">
+        <div id="nameInputContent">
+            <h1>Pool Shark</h1>
+            <div class="name-input-group">
+                <label for="player1NameInput">Player 1 (Solids)</label>
+                <input type="text" id="player1NameInput" placeholder="Enter name" value="Player 1">
+            </div>
+            <div class="name-input-group">
+                <label for="player2NameInput">Player 2 (Stripes)</label>
+                <input type="text" id="player2NameInput" placeholder="Enter name" value="Player 2">
+            </div>
+            <button id="startGameBtn">Start Game</button>
         </div>
     </div>
 
@@ -170,7 +275,7 @@
         canvas.width = canvas.offsetWidth;
         canvas.height = canvas.offsetHeight;
 
-        // Audio context for sound effects
+        // Audio context
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
         // Game constants
@@ -182,7 +287,6 @@
         const WALL_PADDING = 15;
         const MIN_VELOCITY = 0.1;
 
-        // Pockets positions
         const POCKETS = [
             { x: WALL_PADDING, y: WALL_PADDING },
             { x: TABLE_WIDTH / 2, y: WALL_PADDING },
@@ -192,9 +296,8 @@
             { x: TABLE_WIDTH - WALL_PADDING, y: TABLE_HEIGHT - WALL_PADDING },
         ];
 
-        // Ball colors (1-7 solids, 8 black, 9-15 stripes)
         const COLORS = [
-            '#fff',      // 0: white
+            '#fff',      // white
             '#ffeb3b',   // 1: yellow solid
             '#F44336',   // 2: red solid
             '#000080',   // 3: dark blue solid
@@ -202,7 +305,7 @@
             '#FF6B35',   // 5: orange solid
             '#00AA00',   // 6: green solid
             '#8B4513',   // 7: brown solid
-            '#000',      // 8: black (8-ball)
+            '#000',      // 8: black
             '#ffeb3b',   // 9: yellow stripe
             '#F44336',   // 10: red stripe
             '#000080',   // 11: dark blue stripe
@@ -212,7 +315,7 @@
             '#8B4513'    // 15: brown stripe
         ];
 
-        // Sound generation functions
+        // Sound generation
         function playSound(freq, duration, type = 'sine', volume = 0.3) {
             const osc = audioContext.createOscillator();
             const gain = audioContext.createGain();
@@ -244,19 +347,40 @@
             setTimeout(() => playSound(1200, 0.15, 'sine', 0.3), 50);
         }
 
+        function screenShake(intensity = 5) {
+            const originalTransform = canvas.style.transform;
+            for (let i = 0; i < 6; i++) {
+                setTimeout(() => {
+                    const x = (Math.random() - 0.5) * intensity * 2;
+                    const y = (Math.random() - 0.5) * intensity * 2;
+                    canvas.style.transform = `translate(${x}px, ${y}px)`;
+                }, i * 30);
+            }
+            setTimeout(() => {
+                canvas.style.transform = originalTransform;
+            }, 200);
+        }
+
         // Game state
         let balls = [];
         let gameState = 'playing';
-        let currentPlayer = 1; // 1 or 2
+        let currentPlayer = 1;
+        let player1Name = 'Player 1';
+        let player2Name = 'Player 2';
         let player1Score = 0;
         let player2Score = 0;
+        let player1Wins = 0;
+        let player2Wins = 0;
         let ballsPocketedThisTurn = [];
         let gameOver = false;
         let winner = null;
+        let pocketedBalls = { 1: [], 2: [] };
 
         let dragging = false;
         let dragStart = null;
         let dragCurrent = null;
+        let shotPower = 0;
+        let shotFeedbackTimeout = null;
 
         class Ball {
             constructor(x, y, colorIndex = 0) {
@@ -282,7 +406,6 @@
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Wall bounces
                 if (this.x - this.radius < WALL_PADDING) {
                     this.x = WALL_PADDING + this.radius;
                     this.vx *= -0.95;
@@ -324,18 +447,15 @@
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Draw stripes for stripe balls (9-15)
                 if (this.colorIndex >= 9 && this.colorIndex <= 15) {
                     ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 1;
-                    // Draw white stripe across the ball
                     ctx.beginPath();
                     ctx.moveTo(this.x - this.radius * 0.7, this.y);
                     ctx.lineTo(this.x + this.radius * 0.7, this.y);
                     ctx.stroke();
                 }
 
-                // Draw number on ball (1-15, but not 8 which is special)
                 if (this.colorIndex > 0 && this.colorIndex !== 8) {
                     ctx.fillStyle = this.colorIndex <= 7 ? '#000' : '#fff';
                     ctx.font = 'bold 6px Arial';
@@ -344,7 +464,6 @@
                     ctx.fillText(this.colorIndex, this.x, this.y);
                 }
 
-                // 8-ball special marking
                 if (this.colorIndex === 8) {
                     ctx.fillStyle = '#fff';
                     ctx.beginPath();
@@ -374,6 +493,7 @@
             player1Score = 0;
             player2Score = 0;
             gameState = 'playing';
+            pocketedBalls = { 1: [], 2: [] };
             document.getElementById('winnerScreen').style.display = 'none';
 
             balls.push(new Ball(TABLE_WIDTH * 0.25, TABLE_HEIGHT / 2, 0));
@@ -441,13 +561,13 @@
         }
 
         function isPlayerBall(colorIndex, playerNum) {
-            if (colorIndex === 0) return false; // white
-            if (colorIndex === 8) return false; // 8-ball (neutral)
+            if (colorIndex === 0) return false;
+            if (colorIndex === 8) return false;
 
             if (playerNum === 1) {
-                return colorIndex >= 1 && colorIndex <= 7; // solids: 1-7
+                return colorIndex >= 1 && colorIndex <= 7;
             } else {
-                return colorIndex >= 9 && colorIndex <= 15; // stripes: 9-15
+                return colorIndex >= 9 && colorIndex <= 15;
             }
         }
 
@@ -476,6 +596,11 @@
                     } else {
                         ball.pocketAnimation = true;
                         ballsPocketedThisTurn.push(ball.colorIndex);
+                        if (isPlayerBall(ball.colorIndex, 1)) {
+                            pocketedBalls[1].push(ball.colorIndex);
+                        } else if (isPlayerBall(ball.colorIndex, 2)) {
+                            pocketedBalls[2].push(ball.colorIndex);
+                        }
                         pocketSound();
 
                         setTimeout(() => {
@@ -485,7 +610,6 @@
                 }
             }
 
-            // Check if all balls stopped
             const anyMoving = balls.some(b => b.isMoving());
             if (!anyMoving && dragging === false) {
                 checkTurnEnd();
@@ -494,24 +618,19 @@
 
         function checkTurnEnd() {
             if (ballsPocketedThisTurn.length === 0) {
-                // No balls pocketed, switch player
                 currentPlayer = currentPlayer === 1 ? 2 : 1;
             } else {
-                // Check if 8-ball was pocketed
                 if (ballsPocketedThisTurn.includes(8)) {
-                    // Check if player still has balls remaining
                     const playerBalls = balls.filter((b, idx) => {
                         return idx > 0 && isPlayerBall(b.colorIndex, currentPlayer);
                     });
 
                     if (playerBalls.length > 0) {
-                        // Lost! Pocketed 8-ball before clearing their balls
                         gameOver = true;
                         winner = currentPlayer === 1 ? 2 : 1;
                         showWinner(true);
                         return;
                     } else {
-                        // Won! All balls pocketed, 8-ball pocketed last
                         gameOver = true;
                         winner = currentPlayer;
                         showWinner(false);
@@ -519,22 +638,18 @@
                     }
                 }
 
-                // Check if all of player's balls are gone
                 const playerBalls = balls.filter((b, idx) => {
                     return idx > 0 && isPlayerBall(b.colorIndex, currentPlayer);
                 });
 
                 if (playerBalls.length === 0) {
-                    // Player pocketed all their balls - next turn they must pocket 8-ball
-                    // Keep same player for another turn
+                    // Keep same player
                 } else if (ballsPocketedThisTurn.some(idx => isPlayerBall(idx, currentPlayer))) {
-                    // Pocketed at least one of their own balls - keep same player
+                    // Keep same player
                 } else {
-                    // Didn't pocket any of their own balls - switch player
                     currentPlayer = currentPlayer === 1 ? 2 : 1;
                 }
 
-                // Update score
                 if (currentPlayer === 1) {
                     player1Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 1)).length;
                 } else {
@@ -549,25 +664,106 @@
         function showWinner(isLoss = false) {
             document.getElementById('winnerScreen').style.display = 'flex';
             if (isLoss) {
-                document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
-                document.getElementById('winnerSubtext').textContent = `Player ${currentPlayer} fouled on the 8-ball!`;
+                document.getElementById('winnerText').textContent = `${winner === 1 ? player1Name : player2Name} Wins!`;
+                document.getElementById('winnerSubtext').textContent = `${currentPlayer === 1 ? player1Name : player2Name} fouled on the 8-ball!`;
             } else {
-                document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
+                document.getElementById('winnerText').textContent = `${winner === 1 ? player1Name : player2Name} Wins!`;
                 document.getElementById('winnerSubtext').textContent = `Pocketed the 8-ball!`;
             }
+
+            if (winner === 1) {
+                player1Wins++;
+            } else {
+                player2Wins++;
+            }
+
+            saveWins();
         }
 
         function updateUI() {
-            document.getElementById('player1Score').textContent = player1Score;
-            document.getElementById('player2Score').textContent = player2Score;
+            document.getElementById('player1Name').textContent = player1Name;
+            document.getElementById('player2Name').textContent = player2Name;
 
+            // Update pocketed balls display
+            updatePocketedBallsDisplay();
+
+            // Update remaining count
+            const player1RemainingCount = balls.filter((b, idx) => idx > 0 && isPlayerBall(b.colorIndex, 1)).length;
+            const player2RemainingCount = balls.filter((b, idx) => idx > 0 && isPlayerBall(b.colorIndex, 2)).length;
+            document.getElementById('player1Remaining').textContent = `Balls remaining: ${player1RemainingCount}`;
+            document.getElementById('player2Remaining').textContent = `Balls remaining: ${player2RemainingCount}`;
+
+            // Update active player
             if (currentPlayer === 1) {
-                document.getElementById('player1Box').className = 'player-box active';
-                document.getElementById('player2Box').className = 'player-box inactive';
+                document.getElementById('player1Panel').className = 'player-panel active';
+                document.getElementById('player2Panel').className = 'player-panel';
             } else {
-                document.getElementById('player1Box').className = 'player-box inactive';
-                document.getElementById('player2Box').className = 'player-box active';
+                document.getElementById('player1Panel').className = 'player-panel';
+                document.getElementById('player2Panel').className = 'player-panel active';
             }
+        }
+
+        function updatePocketedBallsDisplay() {
+            const p1BallsHTML = pocketedBalls[1].map(idx =>
+                `<div class="ball-icon" style="background-color: ${COLORS[idx]}; border-color: ${idx >= 9 ? '#fff' : 'rgba(255,255,255,0.5)'}; position: relative;">
+                    ${idx >= 9 ? '<div style="width: 100%; height: 2px; background: white; position: absolute; top: 50%; left: 0; transform: translateY(-50%);"></div>' : ''}
+                </div>`
+            ).join('');
+            const p2BallsHTML = pocketedBalls[2].map(idx =>
+                `<div class="ball-icon" style="background-color: ${COLORS[idx]}; border-color: ${idx >= 9 ? '#fff' : 'rgba(255,255,255,0.5)'}; position: relative;">
+                    ${idx >= 9 ? '<div style="width: 100%; height: 2px; background: white; position: absolute; top: 50%; left: 0; transform: translateY(-50%);"></div>' : ''}
+                </div>`
+            ).join('');
+
+            document.getElementById('player1Balls').innerHTML = p1BallsHTML;
+            document.getElementById('player2Balls').innerHTML = p2BallsHTML;
+        }
+
+        function saveWins() {
+            localStorage.setItem('poolWins', JSON.stringify({
+                player1: player1Wins,
+                player2: player2Wins,
+                player1Name: player1Name,
+                player2Name: player2Name
+            }));
+        }
+
+        function loadWins() {
+            const saved = localStorage.getItem('poolWins');
+            if (saved) {
+                const data = JSON.parse(saved);
+                player1Wins = data.player1 || 0;
+                player2Wins = data.player2 || 0;
+                player1Name = data.player1Name || 'Player 1';
+                player2Name = data.player2Name || 'Player 2';
+                document.getElementById('player1NameInput').value = player1Name;
+                document.getElementById('player2NameInput').value = player2Name;
+            }
+        }
+
+        function displayShotFeedback(power) {
+            let feedback = 'Soft';
+            if (power > 80) feedback = 'Boom!';
+            else if (power > 60) feedback = 'Power shot!';
+            else if (power > 40) feedback = 'Nice';
+
+            const popup = document.createElement('div');
+            popup.className = 'shot-feedback';
+            popup.textContent = feedback;
+            popup.style.left = (canvas.offsetLeft + 100) + 'px';
+            popup.style.top = (canvas.offsetTop + 100) + 'px';
+            document.body.appendChild(popup);
+
+            let opacity = 1;
+            const interval = setInterval(() => {
+                opacity -= 0.05;
+                popup.style.opacity = opacity;
+                popup.style.transform = 'translateY(-' + (1 - opacity) * 50 + 'px)';
+                if (opacity <= 0) {
+                    clearInterval(interval);
+                    popup.remove();
+                }
+            }, 50);
         }
 
         function draw() {
@@ -582,9 +778,53 @@
             }
 
             if (dragging && dragStart && dragCurrent) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                const whiteBall = balls[0];
+                const dragLength = Math.sqrt(Math.pow(dragCurrent.x - dragStart.x, 2) + Math.pow(dragCurrent.y - dragStart.y, 2));
+                shotPower = Math.min(dragLength / 2, 100);
+
+                // Power bar background
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(whiteBall.x - 30, whiteBall.y - 50, 60, 8);
+
+                // Power bar color gradient
+                const powerPercent = shotPower / 100;
+                let barColor = '#00ff00';
+                if (powerPercent > 0.6) barColor = '#ffff00';
+                if (powerPercent > 0.8) barColor = '#ff0000';
+                ctx.fillStyle = barColor;
+                ctx.fillRect(whiteBall.x - 30, whiteBall.y - 50, 60 * powerPercent, 8);
+
+                // Power percentage text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(shotPower) + '%', whiteBall.x, whiteBall.y - 35);
+
+                // Cue stick
+                const dx = dragStart.x - dragCurrent.x;
+                const dy = dragStart.y - dragCurrent.y;
+                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                const nx = dx / distance;
+                const ny = dy / distance;
+
+                const cueLength = 80 + shotPower;
+                const cueStartX = whiteBall.x + nx * (BALL_RADIUS + 5);
+                const cueStartY = whiteBall.y + ny * (BALL_RADIUS + 5);
+                const cueEndX = cueStartX + nx * cueLength;
+                const cueEndY = cueStartY + ny * cueLength;
+
+                ctx.strokeStyle = '#8B4513';
+                ctx.lineWidth = 6;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(cueStartX, cueStartY);
+                ctx.lineTo(cueEndX, cueEndY);
+                ctx.stroke();
+
+                // Aiming line
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3 + shotPower / 500)';
+                ctx.lineWidth = 1 + shotPower / 50;
                 ctx.setLineDash([5, 5]);
-                ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(dragStart.x, dragStart.y);
                 ctx.lineTo(dragCurrent.x, dragCurrent.y);
@@ -648,6 +888,12 @@
                 whiteBall.vx = (dx / distance) * power;
                 whiteBall.vy = (dy / distance) * power;
 
+                const shotPowerPercent = Math.min(power / 1.5, 100);
+                displayShotFeedback(shotPowerPercent);
+                if (shotPowerPercent > 80) {
+                    screenShake(8);
+                }
+
                 dragging = false;
                 dragStart = null;
                 dragCurrent = null;
@@ -697,18 +943,35 @@
                 whiteBall.vx = (dx / distance) * power;
                 whiteBall.vy = (dy / distance) * power;
 
+                const shotPowerPercent = Math.min(power / 1.5, 100);
+                displayShotFeedback(shotPowerPercent);
+                if (shotPowerPercent > 80) {
+                    screenShake(8);
+                }
+
                 dragging = false;
                 dragStart = null;
                 dragCurrent = null;
             }
         });
 
+        document.getElementById('startGameBtn').addEventListener('click', () => {
+            player1Name = document.getElementById('player1NameInput').value || 'Player 1';
+            player2Name = document.getElementById('player2NameInput').value || 'Player 2';
+            saveWins();
+            document.getElementById('nameInputScreen').style.display = 'none';
+            initGame();
+        });
+
         document.getElementById('playAgainBtn').addEventListener('click', () => {
             initGame();
         });
 
-        initGame();
-        gameLoop();
+        // Initialize
+        loadWins();
+        document.getElementById('player1Wins').textContent = `Wins: ${player1Wins}`;
+        document.getElementById('player2Wins').textContent = `Wins: ${player2Wins}`;
+        document.getElementById('nameInputScreen').style.display = 'flex';
     </script>
 </body>
 </html>
