@@ -192,12 +192,24 @@
             { x: TABLE_WIDTH - WALL_PADDING, y: TABLE_HEIGHT - WALL_PADDING },
         ];
 
-        // Ball colors
+        // Ball colors (1-7 solids, 8 black, 9-15 stripes)
         const COLORS = [
-            '#fff', // white
-            '#ffeb3b', '#ffeb3b', '#4CAF50', '#4CAF50', '#F44336', '#F44336',
-            '#9C27B0', '#9C27B0', '#FF9800', '#FF9800', '#2196F3', '#2196F3',
-            '#F48FB1', '#F48FB1', '#000'
+            '#fff',      // 0: white
+            '#ffeb3b',   // 1: yellow solid
+            '#F44336',   // 2: red solid
+            '#000080',   // 3: dark blue solid
+            '#800080',   // 4: purple solid
+            '#FF6B35',   // 5: orange solid
+            '#00AA00',   // 6: green solid
+            '#8B4513',   // 7: brown solid
+            '#000',      // 8: black (8-ball)
+            '#ffeb3b',   // 9: yellow stripe
+            '#F44336',   // 10: red stripe
+            '#000080',   // 11: dark blue stripe
+            '#800080',   // 12: purple stripe
+            '#FF6B35',   // 13: orange stripe
+            '#00AA00',   // 14: green stripe
+            '#8B4513'    // 15: brown stripe
         ];
 
         // Sound generation functions
@@ -312,19 +324,34 @@
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fill();
 
-                if (this.colorIndex > 0 && this.colorIndex < 15) {
-                    ctx.strokeStyle = COLORS[this.colorIndex];
+                // Draw stripes for stripe balls (9-15)
+                if (this.colorIndex >= 9 && this.colorIndex <= 15) {
+                    ctx.strokeStyle = '#fff';
                     ctx.lineWidth = 1;
-                    if (this.colorIndex % 2 === 0) {
-                        ctx.beginPath();
-                        ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
+                    // Draw white stripe across the ball
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - this.radius * 0.7, this.y);
+                    ctx.lineTo(this.x + this.radius * 0.7, this.y);
+                    ctx.stroke();
                 }
 
-                if (this.colorIndex === 15) {
+                // Draw number on ball (1-15, but not 8 which is special)
+                if (this.colorIndex > 0 && this.colorIndex !== 8) {
+                    ctx.fillStyle = this.colorIndex <= 7 ? '#000' : '#fff';
+                    ctx.font = 'bold 6px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.colorIndex, this.x, this.y);
+                }
+
+                // 8-ball special marking
+                if (this.colorIndex === 8) {
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 8px Arial';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 6px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText('8', this.x, this.y);
@@ -415,12 +442,12 @@
 
         function isPlayerBall(colorIndex, playerNum) {
             if (colorIndex === 0) return false; // white
-            if (colorIndex === 15) return false; // 8-ball
+            if (colorIndex === 8) return false; // 8-ball (neutral)
 
             if (playerNum === 1) {
-                return colorIndex % 2 === 1; // solids: 1,3,5,7,9,11,13
+                return colorIndex >= 1 && colorIndex <= 7; // solids: 1-7
             } else {
-                return colorIndex % 2 === 0; // stripes: 2,4,6,8,10,12,14
+                return colorIndex >= 9 && colorIndex <= 15; // stripes: 9-15
             }
         }
 
@@ -470,13 +497,26 @@
                 // No balls pocketed, switch player
                 currentPlayer = currentPlayer === 1 ? 2 : 1;
             } else {
-                // Check for 8-ball
-                if (ballsPocketedThisTurn.includes(15)) {
-                    // 8-ball pocketed!
-                    gameOver = true;
-                    winner = currentPlayer;
-                    showWinner();
-                    return;
+                // Check if 8-ball was pocketed
+                if (ballsPocketedThisTurn.includes(8)) {
+                    // Check if player still has balls remaining
+                    const playerBalls = balls.filter((b, idx) => {
+                        return idx > 0 && isPlayerBall(b.colorIndex, currentPlayer);
+                    });
+
+                    if (playerBalls.length > 0) {
+                        // Lost! Pocketed 8-ball before clearing their balls
+                        gameOver = true;
+                        winner = currentPlayer === 1 ? 2 : 1;
+                        showWinner(true);
+                        return;
+                    } else {
+                        // Won! All balls pocketed, 8-ball pocketed last
+                        gameOver = true;
+                        winner = currentPlayer;
+                        showWinner(false);
+                        return;
+                    }
                 }
 
                 // Check if all of player's balls are gone
@@ -485,15 +525,20 @@
                 });
 
                 if (playerBalls.length === 0) {
-                    // Player pocketed all their balls but not 8-ball yet
-                    // They need to pocket the 8-ball
+                    // Player pocketed all their balls - next turn they must pocket 8-ball
+                    // Keep same player for another turn
+                } else if (ballsPocketedThisTurn.some(idx => isPlayerBall(idx, currentPlayer))) {
+                    // Pocketed at least one of their own balls - keep same player
+                } else {
+                    // Didn't pocket any of their own balls - switch player
+                    currentPlayer = currentPlayer === 1 ? 2 : 1;
                 }
 
-                // Update score and keep same player
+                // Update score
                 if (currentPlayer === 1) {
-                    player1Score += ballsPocketedThisTurn.length;
+                    player1Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 1)).length;
                 } else {
-                    player2Score += ballsPocketedThisTurn.length;
+                    player2Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 2)).length;
                 }
             }
 
@@ -501,9 +546,15 @@
             updateUI();
         }
 
-        function showWinner() {
+        function showWinner(isLoss = false) {
             document.getElementById('winnerScreen').style.display = 'flex';
-            document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
+            if (isLoss) {
+                document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
+                document.getElementById('winnerSubtext').textContent = `Player ${currentPlayer} fouled on the 8-ball!`;
+            } else {
+                document.getElementById('winnerText').textContent = `Player ${winner} Wins!`;
+                document.getElementById('winnerSubtext').textContent = `Pocketed the 8-ball!`;
+            }
         }
 
         function updateUI() {
