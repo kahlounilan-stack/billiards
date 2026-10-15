@@ -476,6 +476,8 @@
         let gameMode = '2player'; // '2player' or 'vscomputer'
         let isComputerTurn = false;
         let computerThinking = false;
+        let computerHasShot = false; // Flag to prevent computer from shooting twice per turn
+        let shotTaken = false; // Flag to track if shot has been taken this turn
         let slowMotion = false;
         let slowMotionCounter = 0;
         let comboCount = 0;
@@ -665,7 +667,10 @@
             pocketedBalls = { 1: [], 2: [] };
             comboCount = 0;
             slowMotion = false;
-            isComputerTurn = gameMode === 'vscomputer' && currentPlayer === 2;
+            shotTaken = false;
+            computerHasShot = false;
+            isComputerTurn = false; // Human always goes first
+            computerThinking = false;
             particles = [];
             document.getElementById('winnerScreen').style.display = 'none';
 
@@ -808,71 +813,65 @@
             }
 
             const anyMoving = balls.some(b => b.isMoving());
-            if (!anyMoving && dragging === false && !computerThinking) {
+            if (!anyMoving && dragging === false && shotTaken && !gameOver) {
                 checkTurnEnd();
             }
         }
 
         function checkTurnEnd() {
-            if (ballsPocketedThisTurn.length === 0) {
-                currentPlayer = currentPlayer === 1 ? 2 : 1;
-                isComputerTurn = gameMode === 'vscomputer' && currentPlayer === 2;
-                comboCount = 0;
-            } else {
-                comboCount = ballsPocketedThisTurn.length;
-                if (comboCount > 1) {
-                    showCombo();
-                }
-
-                if (ballsPocketedThisTurn.includes(8)) {
-                    const playerBalls = balls.filter((b, idx) => {
-                        return idx > 0 && isPlayerBall(b.colorIndex, currentPlayer);
-                    });
-
-                    if (playerBalls.length > 0) {
-                        gameOver = true;
-                        winner = currentPlayer === 1 ? 2 : 1;
-                        showWinner(true);
-                        return;
-                    } else {
-                        slowMotion = true;
-                        setTimeout(() => {
-                            gameOver = true;
-                            winner = currentPlayer;
-                            showWinner(false);
-                        }, 500);
-                        return;
-                    }
-                }
-
+            // Check if 8-ball was pocketed (win/loss condition)
+            if (ballsPocketedThisTurn.includes(8)) {
                 const playerBalls = balls.filter((b, idx) => {
                     return idx > 0 && isPlayerBall(b.colorIndex, currentPlayer);
                 });
 
-                if (playerBalls.length === 0) {
-                    // Keep same player
-                } else if (ballsPocketedThisTurn.some(idx => isPlayerBall(idx, currentPlayer))) {
-                    // Keep same player
+                if (playerBalls.length > 0) {
+                    // Lost - pocketed 8-ball before clearing all own balls
+                    gameOver = true;
+                    winner = currentPlayer === 1 ? 2 : 1;
+                    showWinner(true);
+                    return;
                 } else {
-                    currentPlayer = currentPlayer === 1 ? 2 : 1;
-                    isComputerTurn = gameMode === 'vscomputer' && currentPlayer === 2;
-                    comboCount = 0;
-                }
-
-                if (currentPlayer === 1) {
-                    player1Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 1)).length;
-                } else {
-                    player2Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 2)).length;
+                    // Won - cleared all own balls and pocketed 8-ball
+                    slowMotion = true;
+                    setTimeout(() => {
+                        gameOver = true;
+                        winner = currentPlayer;
+                        showWinner(false);
+                    }, 500);
+                    return;
                 }
             }
 
+            // Show combo if multiple balls were pocketed
+            comboCount = ballsPocketedThisTurn.length;
+            if (comboCount > 1) {
+                showCombo();
+            }
+
+            // Update score for pocketed balls
+            if (currentPlayer === 1) {
+                player1Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 1)).length;
+            } else {
+                player2Score += ballsPocketedThisTurn.filter(idx => isPlayerBall(idx, 2)).length;
+            }
+
+            // Clear turn-specific variables
             ballsPocketedThisTurn = [];
+            shotTaken = false;
+
+            // ALWAYS switch to the other player for the next turn (simple alternation)
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            isComputerTurn = gameMode === 'vscomputer' && currentPlayer === 2;
+            computerHasShot = false;
+
             updateUI();
 
+            // If it's now the computer's turn, schedule its shot
             if (isComputerTurn && !gameOver) {
                 computerThinking = true;
                 document.getElementById('aiThinkingIndicator').style.display = 'block';
-                setTimeout(computerShoot, 1500);
+                setTimeout(computerShoot, 1000);
             }
         }
 
@@ -888,6 +887,10 @@
         }
 
         function computerShoot() {
+            // Guard: only shoot once per turn
+            if (computerHasShot) return;
+            computerHasShot = true;
+
             const whiteBall = balls[0];
             let targetBall = null;
             let minDist = Infinity;
@@ -913,6 +916,7 @@
                 whiteBall.vx = (dx / distance) * power;
                 whiteBall.vy = (dy / distance) * power;
 
+                shotTaken = true;
                 displayShotFeedback(Math.min(power / 1.5, 100));
             }
 
@@ -1142,7 +1146,10 @@
 
         // Mouse events
         canvas.addEventListener('mousedown', (e) => {
-            if (gameOver || isComputerTurn) return;
+            if (gameOver || isComputerTurn || shotTaken) return;
+
+            const anyMoving = balls.some(b => b.isMoving());
+            if (anyMoving) return; // Can't shoot while balls are moving
 
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
@@ -1181,6 +1188,8 @@
                 whiteBall.vx = (dx / distance) * power;
                 whiteBall.vy = (dy / distance) * power;
 
+                shotTaken = true; // Mark that a shot has been taken this turn
+
                 const shotPowerPercent = Math.min(power / 1.5, 100);
                 displayShotFeedback(shotPowerPercent);
                 if (shotPowerPercent > 80) {
@@ -1195,7 +1204,10 @@
 
         // Touch events
         canvas.addEventListener('touchstart', (e) => {
-            if (gameOver || isComputerTurn) return;
+            if (gameOver || isComputerTurn || shotTaken) return;
+
+            const anyMoving = balls.some(b => b.isMoving());
+            if (anyMoving) return; // Can't shoot while balls are moving
 
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches[0];
@@ -1235,6 +1247,8 @@
                 const distance = Math.sqrt(dx * dx + dy * dy) || 1;
                 whiteBall.vx = (dx / distance) * power;
                 whiteBall.vy = (dy / distance) * power;
+
+                shotTaken = true; // Mark that a shot has been taken this turn
 
                 const shotPowerPercent = Math.min(power / 1.5, 100);
                 displayShotFeedback(shotPowerPercent);
