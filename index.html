@@ -961,10 +961,12 @@
             saveWins();
             document.getElementById('nameInputScreen').style.display = 'none';
             initGame();
+            gameLoop();
         });
 
         document.getElementById('playAgainBtn').addEventListener('click', () => {
             initGame();
+            gameLoop();
         });
 
         // Initialize
