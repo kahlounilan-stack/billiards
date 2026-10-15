@@ -166,47 +166,6 @@
         #playAgainBtn:hover {
             background: #45a049;
         }
-        #modeSelectScreen {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1002;
-            justify-content: center;
-            align-items: center;
-        }
-        #modeSelectContent {
-            background: #1a1a1a;
-            padding: 40px;
-            border-radius: 10px;
-            text-align: center;
-            color: #fff;
-            border: 2px solid #4CAF50;
-            min-width: 400px;
-        }
-        #modeSelectContent h1 {
-            font-size: 2em;
-            margin-bottom: 30px;
-            color: #4CAF50;
-        }
-        .mode-btn {
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 10px;
-            min-width: 150px;
-        }
-        .mode-btn:hover {
-            background: #45a049;
-        }
         #nameInputScreen {
             display: none;
             position: fixed;
@@ -273,17 +232,6 @@
             pointer-events: none;
             z-index: 100;
         }
-        #aiThinkingIndicator {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 14px;
-            color: #FFD700;
-            background: rgba(0,0,0,0.7);
-            padding: 8px 15px;
-            border-radius: 5px;
-            display: none;
-        }
         .confetti {
             position: fixed;
             width: 10px;
@@ -299,7 +247,6 @@
             <canvas id="poolTable"></canvas>
             <div id="info">Drag to aim. Release to shoot.</div>
             <div id="comboDisplay"></div>
-            <div id="aiThinkingIndicator">🤖 Thinking...</div>
         </div>
         <div id="sidebar">
             <div class="player-panel active" id="player1Panel">
@@ -319,15 +266,7 @@
         </div>
     </div>
 
-    <div id="modeSelectScreen">
-        <div id="modeSelectContent">
-            <h1>Select Game Mode</h1>
-            <button class="mode-btn" id="twoPlayerBtn">👥 2 Players</button>
-            <button class="mode-btn" id="vsComputerBtn">🤖 vs Computer</button>
-        </div>
-    </div>
-
-    <div id="nameInputScreen">
+<div id="nameInputScreen">
         <div id="nameInputContent">
             <h1>Pool Shark</h1>
             <div class="name-input-group" id="player1NameGroup">
@@ -473,10 +412,6 @@
         let gameOver = false;
         let winner = null;
         let pocketedBalls = { 1: [], 2: [] };
-        let gameMode = '2player'; // '2player' or 'vscomputer'
-        let isComputerTurn = false;
-        let computerThinking = false;
-        let computerHasShot = false; // Flag to prevent computer from shooting twice per turn
         let shotTaken = false; // Flag to track if shot has been taken this turn
         let slowMotion = false;
         let slowMotionCounter = 0;
@@ -668,9 +603,6 @@
             comboCount = 0;
             slowMotion = false;
             shotTaken = false;
-            computerHasShot = false;
-            isComputerTurn = false; // Human always goes first
-            computerThinking = false;
             particles = [];
             document.getElementById('winnerScreen').style.display = 'none';
 
@@ -862,17 +794,8 @@
 
             // ALWAYS switch to the other player for the next turn (simple alternation)
             currentPlayer = currentPlayer === 1 ? 2 : 1;
-            isComputerTurn = gameMode === 'vscomputer' && currentPlayer === 2;
-            computerHasShot = false;
 
             updateUI();
-
-            // If it's now the computer's turn, schedule its shot
-            if (isComputerTurn && !gameOver) {
-                computerThinking = true;
-                document.getElementById('aiThinkingIndicator').style.display = 'block';
-                setTimeout(computerShoot, 1000);
-            }
         }
 
         function showCombo() {
@@ -886,45 +809,7 @@
             }, 1500);
         }
 
-        function computerShoot() {
-            // Guard: only shoot once per turn
-            if (computerHasShot) return;
-            computerHasShot = true;
-
-            const whiteBall = balls[0];
-            let targetBall = null;
-            let minDist = Infinity;
-
-            for (let ball of balls) {
-                if (isPlayerBall(ball.colorIndex, 2)) {
-                    const dist = Math.sqrt(
-                        Math.pow(ball.x - whiteBall.x, 2) + Math.pow(ball.y - whiteBall.y, 2)
-                    );
-                    if (dist < minDist) {
-                        minDist = dist;
-                        targetBall = ball;
-                    }
-                }
-            }
-
-            if (targetBall) {
-                const dx = targetBall.x - whiteBall.x;
-                const dy = targetBall.y - whiteBall.y;
-                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
-                const power = (Math.random() * 0.5 + 0.7) * 1.5;
-
-                whiteBall.vx = (dx / distance) * power;
-                whiteBall.vy = (dy / distance) * power;
-
-                shotTaken = true;
-                displayShotFeedback(Math.min(power / 1.5, 100));
-            }
-
-            computerThinking = false;
-            document.getElementById('aiThinkingIndicator').style.display = 'none';
-        }
-
-        function showWinner(isLoss = false) {
+function showWinner(isLoss = false) {
             document.getElementById('winnerScreen').style.display = 'flex';
             if (isLoss) {
                 document.getElementById('winnerText').textContent = `${winner === 1 ? player1Name : player2Name} Wins!`;
@@ -1146,7 +1031,7 @@
 
         // Mouse events
         canvas.addEventListener('mousedown', (e) => {
-            if (gameOver || isComputerTurn || shotTaken) return;
+            if (gameOver || shotTaken) return;
 
             const anyMoving = balls.some(b => b.isMoving());
             if (anyMoving) return; // Can't shoot while balls are moving
@@ -1204,7 +1089,7 @@
 
         // Touch events
         canvas.addEventListener('touchstart', (e) => {
-            if (gameOver || isComputerTurn || shotTaken) return;
+            if (gameOver || shotTaken) return;
 
             const anyMoving = balls.some(b => b.isMoving());
             if (anyMoving) return; // Can't shoot while balls are moving
@@ -1262,29 +1147,9 @@
             }
         });
 
-        // Mode selection
-        document.getElementById('twoPlayerBtn').addEventListener('click', () => {
-            gameMode = '2player';
-            document.getElementById('modeSelectScreen').style.display = 'none';
-            document.getElementById('player2NameGroup').style.display = 'block';
-            document.getElementById('player2Type').textContent = 'Stripes';
-            document.getElementById('nameInputScreen').style.display = 'flex';
-        });
-
-        document.getElementById('vsComputerBtn').addEventListener('click', () => {
-            gameMode = 'vscomputer';
-            document.getElementById('modeSelectScreen').style.display = 'none';
-            document.getElementById('player2NameGroup').style.display = 'none';
-            player2Name = 'Computer';
-            document.getElementById('player2Type').textContent = 'Stripes (AI)';
-            document.getElementById('nameInputScreen').style.display = 'flex';
-        });
-
         document.getElementById('startGameBtn').addEventListener('click', () => {
             player1Name = document.getElementById('player1NameInput').value || 'Player 1';
-            if (gameMode === '2player') {
-                player2Name = document.getElementById('player2NameInput').value || 'Player 2';
-            }
+            player2Name = document.getElementById('player2NameInput').value || 'Player 2';
             saveWins();
             document.getElementById('nameInputScreen').style.display = 'none';
             initGame();
@@ -1292,13 +1157,13 @@
         });
 
         document.getElementById('playAgainBtn').addEventListener('click', () => {
-            document.getElementById('modeSelectScreen').style.display = 'flex';
+            document.getElementById('nameInputScreen').style.display = 'flex';
         });
 
         loadWins();
         document.getElementById('player1Wins').textContent = `Wins: ${player1Wins}`;
         document.getElementById('player2Wins').textContent = `Wins: ${player2Wins}`;
-        document.getElementById('modeSelectScreen').style.display = 'flex';
+        document.getElementById('nameInputScreen').style.display = 'flex';
     </script>
 </body>
 </html>
