@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pool Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #2d5016;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            width: 1000px;
+            height: 500px;
+            background: #0d5d0d;
+            border: 20px solid #3d2817;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            cursor: crosshair;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #fff;
+            font-size: 12px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="poolTable"></canvas>
+        <div id="info">Drag from white ball to aim. Release to shoot.</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('poolTable');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+
+        // Game constants
+        const BALL_RADIUS = 5;
+        const FRICTION = 0.985;
+        const POCKET_RADIUS = 8;
+        const TABLE_WIDTH = canvas.width;
+        const TABLE_HEIGHT = canvas.height;
+        const WALL_PADDING = 15;
+        const MIN_VELOCITY = 0.1;
+
+        // Pockets positions (corners and sides)
+        const POCKETS = [
+            { x: WALL_PADDING, y: WALL_PADDING },
+            { x: TABLE_WIDTH / 2, y: WALL_PADDING },
+            { x: TABLE_WIDTH - WALL_PADDING, y: WALL_PADDING },
+            { x: WALL_PADDING, y: TABLE_HEIGHT - WALL_PADDING },
+            { x: TABLE_WIDTH / 2, y: TABLE_HEIGHT - WALL_PADDING },
+            { x: TABLE_WIDTH - WALL_PADDING, y: TABLE_HEIGHT - WALL_PADDING },
+        ];
+
+        // Ball colors
+        const COLORS = [
+            '#fff', // 0: white cue ball
+            '#ffeb3b', '#ffeb3b', '#4CAF50', '#4CAF50', '#F44336', '#F44336',
+            '#9C27B0', '#9C27B0', '#FF9800', '#FF9800', '#2196F3', '#2196F3',
+            '#F48FB1', '#F48FB1', '#000'
+        ];
+
+        let balls = [];
+        let dragging = false;
+        let dragStart = null;
+        let dragCurrent = null;
+
+        class Ball {
+            constructor(x, y, colorIndex = 0) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.colorIndex = colorIndex;
+                this.radius = BALL_RADIUS;
+            }
+
+            update() {
+                // Apply friction
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+
+                // Stop if velocity is very small
+                if (Math.abs(this.vx) < MIN_VELOCITY) this.vx = 0;
+                if (Math.abs(this.vy) < MIN_VELOCITY) this.vy = 0;
+
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Bounce off walls
+                if (this.x - this.radius < WALL_PADDING) {
+                    this.x = WALL_PADDING + this.radius;
+                    this.vx *= -0.95;
+                }
+                if (this.x + this.radius > TABLE_WIDTH - WALL_PADDING) {
+                    this.x = TABLE_WIDTH - WALL_PADDING - this.radius;
+                    this.vx *= -0.95;
+                }
+                if (this.y - this.radius < WALL_PADDING) {
+                    this.y = WALL_PADDING + this.radius;
+                    this.vy *= -0.95;
+                }
+                if (this.y + this.radius > TABLE_HEIGHT - WALL_PADDING) {
+                    this.y = TABLE_HEIGHT - WALL_PADDING - this.radius;
+                    this.vy *= -0.95;
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = COLORS[this.colorIndex];
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw stripe or solid indicator
+                if (this.colorIndex > 0 && this.colorIndex < 15) {
+                    ctx.strokeStyle = COLORS[this.colorIndex];
+                    ctx.lineWidth = 1;
+                    if (this.colorIndex % 2 === 0) { // Stripes
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.radius * 0.6, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+
+                // Black ball number
+                if (this.colorIndex === 15) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 8px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('8', this.x, this.y);
+                }
+            }
+
+            isMoving() {
+                return Math.abs(this.vx) > MIN_VELOCITY || Math.abs(this.vy) > MIN_VELOCITY;
+            }
+        }
+
+        function initGame() {
+            balls = [];
+
+            // White cue ball
+            balls.push(new Ball(TABLE_WIDTH * 0.25, TABLE_HEIGHT / 2, 0));
+
+            // Rack of 15 balls in triangle formation
+            const startX = TABLE_WIDTH * 0.65;
+            const startY = TABLE_HEIGHT / 2;
+            const spacing = BALL_RADIUS * 2.5;
+            let colorIndex = 1;
+
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col <= row; col++) {
+                    const x = startX + row * spacing;
+                    const y = startY - (row * spacing) / 2 + col * spacing;
+                    balls.push(new Ball(x, y, colorIndex));
+                    colorIndex++;
+                }
+            }
+        }
+
+        function checkPocketCollision(ball) {
+            for (let pocket of POCKETS) {
+                const dx = ball.x - pocket.x;
+                const dy = ball.y - pocket.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < POCKET_RADIUS) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function checkBallCollision(ball1, ball2) {
+            const dx = ball2.x - ball1.x;
+            const dy = ball2.y - ball1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const minDistance = ball1.radius + ball2.radius;
+
+            if (distance < minDistance) {
+                // Normalize collision vector
+                const nx = dx / distance;
+                const ny = dy / distance;
+
+                // Relative velocity
+                const dvx = ball2.vx - ball1.vx;
+                const dvy = ball2.vy - ball1.vy;
+
+                // Relative velocity in collision normal direction
+                const dvDotN = dvx * nx + dvy * ny;
+
+                // Only resolve if balls are moving towards each other
+                if (dvDotN < 0) {
+                    // Update velocities (equal mass elastic collision)
+                    ball1.vx += dvDotN * nx;
+                    ball1.vy += dvDotN * ny;
+                    ball2.vx -= dvDotN * nx;
+                    ball2.vy -= dvDotN * ny;
+
+                    // Separate balls to prevent overlap
+                    const overlap = (minDistance - distance) / 2 + 0.5;
+                    ball1.x -= overlap * nx;
+                    ball1.y -= overlap * ny;
+                    ball2.x += overlap * nx;
+                    ball2.y += overlap * ny;
+                }
+            }
+        }
+
+        function update() {
+            // Update all balls
+            for (let ball of balls) {
+                ball.update();
+            }
+
+            // Check ball-to-ball collisions
+            for (let i = 0; i < balls.length; i++) {
+                for (let j = i + 1; j < balls.length; j++) {
+                    checkBallCollision(balls[i], balls[j]);
+                }
+            }
+
+            // Check pocket collisions and remove balls
+            for (let i = balls.length - 1; i >= 0; i--) {
+                if (checkPocketCollision(balls[i])) {
+                    if (balls[i].colorIndex === 0) {
+                        // White ball goes back to start position
+                        balls[i].x = TABLE_WIDTH * 0.25;
+                        balls[i].y = TABLE_HEIGHT / 2;
+                        balls[i].vx = 0;
+                        balls[i].vy = 0;
+                    } else {
+                        // Other balls are removed
+                        balls.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            // Clear canvas with felt color
+            ctx.fillStyle = '#0d5d0d';
+            ctx.fillRect(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
+
+            // Draw pockets
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            for (let pocket of POCKETS) {
+                ctx.beginPath();
+                ctx.arc(pocket.x, pocket.y, POCKET_RADIUS, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw aiming line while dragging
+            if (dragging && dragStart && dragCurrent) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(dragStart.x, dragStart.y);
+                ctx.lineTo(dragCurrent.x, dragCurrent.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw all balls
+            for (let ball of balls) {
+                ball.draw();
+            }
+
+            // Draw table border effect
+            ctx.strokeStyle = '#8B6914';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(WALL_PADDING, WALL_PADDING, TABLE_WIDTH - WALL_PADDING * 2, TABLE_HEIGHT - WALL_PADDING * 2);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Mouse event handling
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if click is on white ball
+            const whiteBall = balls[0];
+            const dx = x - whiteBall.x;
+            const dy = y - whiteBall.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < whiteBall.radius + 20) {
+                dragging = true;
+                dragStart = { x: whiteBall.x, y: whiteBall.y };
+                dragCurrent = { x, y };
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (dragging && dragStart) {
+                const rect = canvas.getBoundingClientRect();
+                dragCurrent = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (dragging && dragStart && dragCurrent) {
+                const whiteBall = balls[0];
+                const dx = dragStart.x - dragCurrent.x;
+                const dy = dragStart.y - dragCurrent.y;
+                const power = Math.sqrt(dx * dx + dy * dy) * 0.15;
+
+                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                whiteBall.vx = (dx / distance) * power;
+                whiteBall.vy = (dy / distance) * power;
+
+                dragging = false;
+                dragStart = null;
+                dragCurrent = null;
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            dragging = false;
+        });
+
+        // Start game
+        initGame();
+        gameLoop();
+    </script>
+</body>
+</html>
